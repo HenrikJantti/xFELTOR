@@ -8,6 +8,7 @@ def open_feltordataset(
     datapath: str = "./*.nc",
     chunks: Union[int, dict] = None,
     restart_indices: bool = False,
+    probes: bool = False,
     **kwargs: dict,
 ) -> xr.Dataset:
     """Loads FELTOR output into one xarray Dataset. Can load either a single
@@ -32,10 +33,15 @@ def open_feltordataset(
     if chunks is None:
         chunks = {}
 
+    if probes is True:
+        combine_opt = "by_coords"
+    else:
+        combine_opt = "nested"
+
     ds = xr.open_mfdataset(
         datapath,
         chunks=chunks,
-        combine="nested",
+        combine=combine_opt,
         concat_dim="time",
         decode_times=False,
         join="outer",
@@ -52,5 +58,8 @@ def open_feltordataset(
 
     for i in input_variables:
         ds.attrs[i] = input_variables[i]
+
+    if probes is True:
+        ds = ds.assign_coords(dict(probex=("Probes",ds.px.values),probey=("Probes",ds.py.values)))
 
     return ds.isel(time=index)
