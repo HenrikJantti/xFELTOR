@@ -47,7 +47,7 @@ def open_feltordataset(
         chunks = {}
 
     combine_opt = "by_coords" if probes else "nested"
-    
+
     ds = xr.open_mfdataset(
         datapath,
         chunks=chunks,
