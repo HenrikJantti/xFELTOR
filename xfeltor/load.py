@@ -46,11 +46,8 @@ def open_feltordataset(
     if chunks is None:
         chunks = {}
 
-    if probes is True:
-        combine_opt = "by_coords"
-    else:
-        combine_opt = "nested"
-
+    combine_opt = "by_coords" if probes else "nested"
+    
     ds = xr.open_mfdataset(
         datapath,
         chunks=chunks,
@@ -72,7 +69,12 @@ def open_feltordataset(
     for i in input_variables:
         ds.attrs[i] = input_variables[i]
 
-    if probes is True:
-        ds = ds.assign_coords(dict(probex=(probe_id,ds[probex].values),probey=(probe_id,ds[probey].values)))
+    if probes:
+        ds = ds.assign_coords(
+            dict(
+                probex=(probe_id, ds[probex].values),
+                probey=(probe_id, ds[probey].values),
+            )
+        )
 
     return ds.isel(time=index)
