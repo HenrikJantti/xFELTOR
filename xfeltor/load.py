@@ -9,7 +9,7 @@ def open_feltordataset(
     chunks: Union[int, dict] = None,
     restart_indices: bool = False,
     probes: bool = False,
-    probe_id: str = "Probes",
+    probe_id: str = "probes",
     probex: str = "px",
     probey: str = "py",
     **kwargs: dict,
@@ -69,6 +69,27 @@ def open_feltordataset(
     for i in input_variables:
         ds.attrs[i] = input_variables[i]
 
+    """
+    this part is testing wise. Does probably not work 
+    for name , _ in ds.items():
+        if "_prb" in name:
+            ds[name] = ds[name].expand_dims(probex=5, probey=3)
+            ds[name] = ds[name].assign_coords(
+            dict(
+                probex=("probex", np.unique(ds[probex].values)),
+                probey=("probey", np.unique(ds[probey].values)),
+                )
+            )
+            # ds[name] = ds[name].assign_coords(
+            # dict(
+            #     probex=("probes", ds[probex].values),
+            #     probey=("probes", ds[probey].values),
+            #     )
+            # )
+            #da.stack()
+            #print(da.isel(probex=1,probey=1))  
+    """
+    #Works for 1d probe grids, untested on 2D grids
     if probes:
         ds = ds.assign_coords(
             dict(
@@ -76,5 +97,5 @@ def open_feltordataset(
                 probey=(probe_id, ds[probey].values),
             )
         )
-
+    
     return ds.isel(time=index)
