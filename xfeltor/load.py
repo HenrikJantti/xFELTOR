@@ -9,9 +9,6 @@ def open_feltordataset(
     chunks: Union[int, dict] = None,
     restart_indices: bool = False,
     probes: bool = False,
-    probe_id: str = "probes",
-    probex: str = "px",
-    probey: str = "py",
     **kwargs: dict,
 ) -> xr.Dataset:
     """Loads FELTOR output into one xarray Dataset. Can load either a single
@@ -22,6 +19,7 @@ def open_feltordataset(
     datapath : str or (list or tuple of xr.Dataset), optional
         Path to the data to open. Can point to either a set of one or more *nc
         files.
+
     chunks : dict, optional
         Dictionary with keys given by dimension names and values given by chunk sizes.
         By default, chunks will be chosen to load entire input files into memory at once.
@@ -29,19 +27,12 @@ def open_feltordataset(
         http://xarray.pydata.org/en/stable/user-guide/dask.html#chunking-and-performance
     restart_indices: bool, optional
         if True, duplicate time steps from restared runs are kept
+        Keyword arguments are passed down to `xarray.open_mfdataset`, which in
+        turn passes extra kwargs down to `xarray.open_dataset`.
     probes: bool, optional
         if True, indicates that the dataset contains probes and associates values of the
         x and y possition for each probe with the coresponding probe_id.
         Also changes the combine option to "by_coords".
-    probe_id: str, optional
-        The coordinate to associate the x and y positions of the probes with.
-    probex: str, optional
-        The name of the variable in the dataset where the x positon of probes are stored.
-    probey: str, optional
-        The name of the variable in the dataset where the y positon of probes are stored.
-    kwargs : optional
-        Keyword arguments are passed down to `xarray.open_mfdataset`, which in
-        turn passes extra kwargs down to `xarray.open_dataset`.
     """
     if chunks is None:
         chunks = {}
@@ -69,33 +60,37 @@ def open_feltordataset(
     for i in input_variables:
         ds.attrs[i] = input_variables[i]
 
-    """
-    this part is testing wise. Does probably not work 
-    for name , _ in ds.items():
-        if "_prb" in name:
-            ds[name] = ds[name].expand_dims(probex=5, probey=3)
-            ds[name] = ds[name].assign_coords(
-            dict(
-                probex=("probex", np.unique(ds[probex].values)),
-                probey=("probey", np.unique(ds[probey].values)),
-                )
-            )
-            # ds[name] = ds[name].assign_coords(
-            # dict(
-            #     probex=("probes", ds[probex].values),
-            #     probey=("probes", ds[probey].values),
-            #     )
-            # )
-            #da.stack()
-            #print(da.isel(probex=1,probey=1))  
-    """
-    #Works for 1d probe grids, untested on 2D grids
     if probes:
+        x = np.unique(ds.px.values)
+        y = np.unique(ds.py.values)
         ds = ds.assign_coords(
             dict(
-                probex=(probe_id, ds[probex].values),
-                probey=(probe_id, ds[probey].values),
+                probe_x=x,
+                probe_y=y,
             )
         )
-    
+        reshaped_prb = np.reshape(
+            ds.electrons_prb.values, (y.size, x.size, ds.probe_time.values.size)
+        )
+        ds = ds.assign(
+            electrons_prb=(["probe_y", "probe_x", "probe_time"], reshaped_prb)
+        )
+        reshaped_prb = np.reshape(
+            ds.ions_prb.values, (y.size, x.size, ds.probe_time.values.size)
+        )
+        ds = ds.assign(ions_prb=(["probe_y", "probe_x", "probe_time"], reshaped_prb))
+        reshaped_prb = np.reshape(
+            ds.potential_prb.values, (y.size, x.size, ds.probe_time.values.size)
+        )
+        ds = ds.assign(
+            potential_prb=(["probe_y", "probe_x", "probe_time"], reshaped_prb)
+        )
+        reshaped_prb = np.reshape(
+            ds.vorticity_prb.values, (y.size, x.size, ds.probe_time.values.size)
+        )
+        ds = ds.assign(
+            vorticity_prb=(["probe_y", "probe_x", "probe_time"], reshaped_prb)
+        )
+        ds = ds.drop_dims(("probes"))
+
     return ds.isel(time=index)
